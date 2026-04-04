@@ -62,6 +62,17 @@ The architecture is a sequential CNN designed for high spatial feature extractio
   </svg>
 </div>
 
+## Interactive Demo
+This project includes a live Streamlit dashboard to test the model in real-time.
+
+### Running the App
+1. Activate your virtual environment.
+2. Run the following command:
+   ```bash
+   streamlit run app.py
+   ```
+3. Use the **Upload Tab** to test with image files, or the **Draw Tab** to create your own digits.
+
 ## Preprocessing Details
 - **Normalization**: Pixel values scaled to [0, 1] range.
 - **Reshaping**: Images converted to (28, 28, 1) for grayscale convolutional input.

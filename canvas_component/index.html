@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        background: transparent;
+        font-family: 'Inter', Arial, sans-serif;
+    }
+    .canvas-wrapper {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+    }
+    canvas {
+        border: 2px solid #667eea;
+        border-radius: 12px;
+        cursor: crosshair;
+        touch-action: none;
+    }
+    .btn-row {
+        display: flex;
+        gap: 10px;
+    }
+    button {
+        padding: 8px 24px;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    .btn-clear {
+        background: #2d3748;
+        color: #e2e8f0;
+    }
+    .btn-clear:hover {
+        background: #4a5568;
+    }
+    .btn-submit {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    .btn-submit:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+</style>
+</head>
+<body>
+<div class="canvas-wrapper">
+    <canvas id="drawCanvas" width="280" height="280"></canvas>
+    <div class="btn-row">
+        <button class="btn-clear" onclick="clearCanvas()">Clear</button>
+        <button class="btn-submit" onclick="submitDrawing()">Classify Drawing</button>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('drawCanvas');
+    const ctx = canvas.getContext('2d');
+    let isDrawing = false;
+
+    // Fill black background
+    function clearCanvas() {
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        window.parent.postMessage({type: 'canvas_clear'}, '*');
+    }
+    clearCanvas();
+
+    // Drawing settings
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 18;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    function getPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return {
+            x: clientX - rect.left,
+            y: clientY - rect.top
+        };
+    }
+
+    function startDraw(e) {
+        e.preventDefault();
+        isDrawing = true;
+        const pos = getPos(e);
+        ctx.beginPath();
+        ctx.moveTo(pos.x, pos.y);
+    }
+
+    function draw(e) {
+        e.preventDefault();
+        if (!isDrawing) return;
+        const pos = getPos(e);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+    }
+
+    function stopDraw(e) {
+        e.preventDefault();
+        isDrawing = false;
+    }
+
+    // Mouse events
+    canvas.addEventListener('mousedown', startDraw);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', stopDraw);
+    canvas.addEventListener('mouseleave', stopDraw);
+
+    // Touch events
+    canvas.addEventListener('touchstart', startDraw);
+    canvas.addEventListener('touchmove', draw);
+    canvas.addEventListener('touchend', stopDraw);
+
+    function submitDrawing() {
+        const dataUrl = canvas.toDataURL('image/png');
+        window.parent.postMessage({type: 'canvas_submit', data: dataUrl}, '*');
+    }
+
+    // Tell Streamlit the component height
+    function sendHeight() {
+        const height = document.body.scrollHeight;
+        window.parent.postMessage({type: 'streamlit:componentReady'}, '*');
+        window.parent.postMessage({type: 'streamlit:setFrameHeight', height: height}, '*');
+    }
+    window.addEventListener('load', sendHeight);
+</script>
+</body>
+</html>
