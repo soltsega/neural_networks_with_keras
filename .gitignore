@@ -1,4 +1,18 @@
+# Virtual Environment
 .venv/
+
+# Environment / Data (Large files)
 data/mnist_preprocessed.npz
-models/mnist_cnn_v1.h5
-export_results.py
+
+# Python Cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# System
+.DS_Store
+Thumbs.db
