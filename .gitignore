@@ -1,2 +1,3 @@
 .venv/
 data/mnist_preprocessed.npz
+models/mnist_cnn_v1.h5
