@@ -1,8 +1,10 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import tensorflow as tf
 import numpy as np
 from PIL import Image, ImageOps
-from streamlit_drawable_canvas import st_canvas
+import base64
+import io
 import os
 
 # --- PAGE CONFIG ---
@@ -146,7 +148,7 @@ st.markdown("""
 # --- MODEL LOADING ---
 @st.cache_resource
 def load_model():
-    model_path = os.path.join(os.path.dirname(__file__), 'models', 'mnist_cnn_v1.h5')
+    model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'mnist_cnn_v1.h5')
     if os.path.exists(model_path):
         return tf.keras.models.load_model(model_path)
     return None
@@ -215,18 +217,18 @@ with st.sidebar:
 def preprocess_image(img):
     """Convert any image to model-ready 28x28 grayscale numpy array."""
     img = ImageOps.grayscale(img)
-    img = ImageOps.invert(img)  # MNIST expects white digit on black background
+    img = ImageOps.invert(img)
     img = img.resize((28, 28), Image.LANCZOS)
     img_array = np.array(img).astype('float32') / 255.0
     img_array = img_array.reshape(1, 28, 28, 1)
     return img_array
 
 
-def preprocess_canvas(canvas_data):
-    """Convert canvas RGBA numpy array to model-ready input."""
-    # Extract alpha channel (the drawing strokes)
-    img = Image.fromarray(canvas_data.astype('uint8'), 'RGBA')
-    img = img.convert('L')  # Convert to grayscale
+def preprocess_canvas_image(data_url):
+    """Decode a base64 data URL from the canvas into a model-ready array."""
+    header, encoded = data_url.split(',', 1)
+    img_bytes = base64.b64decode(encoded)
+    img = Image.open(io.BytesIO(img_bytes)).convert('L')
     img = img.resize((28, 28), Image.LANCZOS)
     img_array = np.array(img).astype('float32') / 255.0
     img_array = img_array.reshape(1, 28, 28, 1)
@@ -253,6 +255,66 @@ def display_results(prediction):
         st.markdown("#### Probability Distribution")
         chart_data = {str(i): float(prediction[0][i]) for i in range(10)}
         st.bar_chart(chart_data)
+
+
+# --- CANVAS HTML (inline for reliability) ---
+CANVAS_HTML = """
+<div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
+    <canvas id="drawCanvas" width="280" height="280"
+        style="border:2px solid #667eea;border-radius:12px;cursor:crosshair;touch-action:none;background:#000;">
+    </canvas>
+    <div style="display:flex;gap:10px;">
+        <button onclick="clearCanvas()"
+            style="padding:8px 24px;border:none;border-radius:8px;font-size:14px;font-weight:600;
+            cursor:pointer;background:#2d3748;color:#e2e8f0;">Clear</button>
+        <button onclick="submitDrawing()"
+            style="padding:8px 24px;border:none;border-radius:8px;font-size:14px;font-weight:600;
+            cursor:pointer;background:linear-gradient(135deg,#667eea,#764ba2);color:white;">
+            Classify Drawing</button>
+    </div>
+    <input type="hidden" id="canvasData" value="">
+</div>
+<script>
+const canvas = document.getElementById('drawCanvas');
+const ctx = canvas.getContext('2d');
+let drawing = false;
+
+function clearCanvas() {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, 280, 280);
+}
+clearCanvas();
+
+ctx.strokeStyle = '#FFF';
+ctx.lineWidth = 18;
+ctx.lineCap = 'round';
+ctx.lineJoin = 'round';
+
+function getPos(e) {
+    const r = canvas.getBoundingClientRect();
+    const x = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
+    const y = (e.touches ? e.touches[0].clientY : e.clientY) - r.top;
+    return {x, y};
+}
+
+canvas.addEventListener('mousedown', e => { e.preventDefault(); drawing=true; const p=getPos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); });
+canvas.addEventListener('mousemove', e => { e.preventDefault(); if(!drawing)return; const p=getPos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); });
+canvas.addEventListener('mouseup', e => { e.preventDefault(); drawing=false; });
+canvas.addEventListener('mouseleave', e => { drawing=false; });
+canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing=true; const p=getPos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); });
+canvas.addEventListener('touchmove', e => { e.preventDefault(); if(!drawing)return; const p=getPos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); });
+canvas.addEventListener('touchend', e => { e.preventDefault(); drawing=false; });
+
+function submitDrawing() {
+    const dataUrl = canvas.toDataURL('image/png');
+    // Save to a temporary file by writing to a hidden link and downloading
+    const link = document.createElement('a');
+    link.download = 'drawn_digit.png';
+    link.href = dataUrl;
+    link.click();
+}
+</script>
+"""
 
 
 # --- TABS ---
@@ -282,34 +344,11 @@ with tab_upload:
 
 with tab_draw:
     st.markdown("#### Draw a single digit (0-9) in the canvas below")
-    st.markdown("Use your mouse or touchscreen to draw. Click **Classify Drawing** when ready.")
+    st.markdown("Draw your digit, then click **Classify Drawing** to download it as an image. "
+                "Upload that image in the **Upload Image** tab to classify it.")
 
-    canvas_result = st_canvas(
-        fill_color="rgba(0, 0, 0, 1)",
-        stroke_width=20,
-        stroke_color="#FFFFFF",
-        background_color="#000000",
-        height=300,
-        width=300,
-        drawing_mode="freedraw",
-        update_streamlit=True,
-        key="draw_canvas",
-    )
-
-    if st.button("Classify Drawing", key="btn_draw"):
-        if canvas_result is not None and canvas_result.image_data is not None:
-            canvas_array = canvas_result.image_data
-            has_drawing = np.any(canvas_array[:, :, :3] > 0)
-
-            if has_drawing:
-                with st.spinner("Analyzing..."):
-                    processed = preprocess_canvas(canvas_array)
-                    prediction = model.predict(processed, verbose=0)
-                    display_results(prediction)
-            else:
-                st.warning("The canvas is empty. Please draw a digit first.")
-        else:
-            st.warning("Canvas has not loaded yet. Please try again.")
+    # Render the HTML5 canvas
+    components.html(CANVAS_HTML, height=380)
 
 # --- FOOTER ---
 st.markdown("---")
