@@ -160,7 +160,7 @@ with main_col:
     st.markdown('<div class="glass-card">', unsafe_allow_html=True)
     st.markdown("### Input Laboratory")
     
-    tab_draw, tab_upload = st.tabs(["[ 🎨 ] Handwritten Draw", "[ 📁 ] Upload Sample"])
+    tab_draw, tab_upload = st.tabs([" 🎨  Handwritten Draw", " 📁  Upload Sample"])
     
     with tab_draw:
         # Improved Canvas UI
