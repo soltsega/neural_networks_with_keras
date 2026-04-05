@@ -9,270 +9,208 @@ import os
 
 # --- PAGE CONFIG ---
 st.set_page_config(
-    page_title="MNIST Digit Classifier",
+    page_title="MNIST Neural Vision",
+    page_icon="🧠",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# --- CUSTOM CSS ---
+# --- PREMIUM STATIONARY CSS (No Animations) ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
 
-    html, body, [class*="css"] {
+    /* Main Container Styling */
+    .main {
+        background-color: #0b0e14;
+        color: #e6edf3;
         font-family: 'Inter', sans-serif;
     }
 
-    .main {
-        background: linear-gradient(135deg, #0f0c29 0%, #1a1a2e 50%, #16213e 100%);
-        color: #e0e0e0;
+    /* Glassmorphism Cards */
+    .glass-card {
+        background: rgba(23, 27, 33, 0.7);
+        border: 1px solid rgba(48, 54, 61, 1);
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 20px;
+        backdrop-filter: blur(8px);
     }
 
-    .block-container {
-        padding-top: 2rem;
+    /* Sidebar Styling */
+    section[data-testid="stSidebar"] {
+        background-color: #0d1117;
+        border-right: 1px solid #30363d;
     }
 
-    .header-title {
-        font-size: 2.4rem;
+    /* Typography */
+    h1, h2, h3 {
+        color: #f0f6fc;
         font-weight: 700;
-        color: #ffffff;
-        text-align: center;
-        margin-bottom: 0.2rem;
     }
-
-    .header-subtitle {
-        font-size: 1rem;
-        color: #8892b0;
-        text-align: center;
-        margin-bottom: 2rem;
-    }
-
-    .prediction-card {
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 16px;
-        padding: 2rem;
-        text-align: center;
-        backdrop-filter: blur(10px);
-    }
-
-    .prediction-digit {
-        font-size: 96px;
-        font-weight: 700;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    
+    .hero-text {
+        font-size: 2.5rem;
+        background: linear-gradient(90deg, #58a6ff, #bc8cff);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        line-height: 1.1;
+        margin-bottom: 10px;
     }
 
-    .confidence-label {
-        font-size: 1.1rem;
-        color: #a8b2d1;
-        margin-top: 0.5rem;
+    /* Custom Metric Styling */
+    .metric-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 15px;
+        background: rgba(31, 35, 41, 1);
+        border-radius: 8px;
+        border: 1px solid #30363d;
     }
-
-    .confidence-value {
-        font-size: 1.8rem;
-        font-weight: 600;
-        color: #64ffda;
+    .metric-value {
+        font-size: 3rem;
+        font-weight: 800;
+        color: #58a6ff;
     }
-
-    .stat-box {
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 12px;
-        padding: 1rem 1.2rem;
-        margin-bottom: 0.8rem;
-    }
-
-    .stat-label {
-        font-size: 0.75rem;
-        color: #8892b0;
+    .metric-label {
+        font-size: 0.8rem;
         text-transform: uppercase;
+        color: #8b949e;
         letter-spacing: 1px;
     }
 
-    .stat-value {
-        font-size: 1.3rem;
+    /* System Badges */
+    .status-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 11px;
         font-weight: 600;
-        color: #ccd6f6;
+        text-transform: uppercase;
+        margin-right: 8px;
     }
+    .badge-online { background: rgba(35, 134, 54, 0.2); color: #3fb950; border: 1px solid #238636; }
+    .badge-test { background: rgba(31, 111, 235, 0.2); color: #58a6ff; border: 1px solid #388bfd; }
 
-    div[data-testid="stSidebar"] {
-        background: rgba(15, 12, 41, 0.95);
-        border-right: 1px solid rgba(255, 255, 255, 0.06);
-    }
-
+    /* Custom Tabs */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-        justify-content: center;
+        gap: 10px;
+        padding-bottom: 10px;
     }
-
     .stTabs [data-baseweb="tab"] {
+        height: 45px;
+        background-color: transparent;
+        border: 1px solid #30363d;
         border-radius: 8px;
-        padding: 10px 24px;
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        color: #a8b2d1;
+        color: #8b949e;
     }
-
     .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
+        background-color: #1f2329 !important;
+        border-color: #58a6ff !important;
+        color: #f0f6fc !important;
     }
 
-    .stButton > button {
-        width: 100%;
-        border-radius: 10px;
-        height: 3em;
+    /* Prediction Preview Mask */
+    .ai-vision-box {
+        border: 4px solid #30363d;
+        border-radius: 8px;
+        image-rendering: pixelated;
+    }
+
+    /* Buttons */
+    .stButton>button {
+        background: linear-gradient(180deg, #21262d 0%, #161b22 100%);
+        color: #c9d1d9;
+        border: 1px solid #30363d;
+        border-radius: 6px;
         font-weight: 600;
-        font-size: 1rem;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        transition: all 0.3s ease;
+        width: 100%;
+        transition: none; /* No Animation */
+    }
+    .stButton>button:hover {
+        border-color: #8b949e;
+        color: #f0f6fc;
     }
 
-    .stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
-    }
-
-    footer {
-        color: #4a5568;
-    }
 </style>
 """, unsafe_allow_html=True)
 
-
 # --- MODEL LOADING ---
 @st.cache_resource
-def load_model():
+def load_mnist_model():
     model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'mnist_cnn_v1.h5')
     if os.path.exists(model_path):
         return tf.keras.models.load_model(model_path)
     return None
 
+model = load_mnist_model()
 
-model = load_model()
+# --- HEADER SECTION ---
+col_head, col_space = st.columns([3, 1])
+with col_head:
+    st.markdown('<p class="hero-text">Neural Vision</p>', unsafe_allow_html=True)
+    st.markdown("""
+    <div style="margin-bottom: 30px;">
+        <span class="status-badge badge-online">System: Operational</span>
+        <span class="status-badge badge-test">Accuracy: 99.17%</span>
+    </div>
+    """, unsafe_allow_html=True)
 
-# --- HEADER ---
-st.markdown('<p class="header-title">MNIST Digit Classifier</p>', unsafe_allow_html=True)
-st.markdown('<p class="header-subtitle">Real-time handwritten digit recognition powered by a Convolutional Neural Network</p>', unsafe_allow_html=True)
-
-if model is None:
-    st.error("Model file not found at models/mnist_cnn_v1.h5. Train the model first using the notebooks.")
-    st.stop()
-
-# --- SIDEBAR ---
+# --- SIDEBAR DASHBOARD ---
 with st.sidebar:
     st.markdown("### System Dashboard")
     st.markdown("---")
-
-    st.markdown("""
-    <div class="stat-box">
-        <div class="stat-label">Model Status</div>
-        <div class="stat-value" style="color: #64ffda;">Loaded</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("""
-    <div class="stat-box">
-        <div class="stat-label">Test Accuracy</div>
-        <div class="stat-value">99.17%</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("""
-    <div class="stat-box">
-        <div class="stat-label">Architecture</div>
-        <div class="stat-value">CNN (2 Conv Layers)</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("""
-    <div class="stat-box">
-        <div class="stat-label">Framework</div>
-        <div class="stat-value">TensorFlow / Keras</div>
-    </div>
-    """, unsafe_allow_html=True)
-
+    st.markdown("**Engine**: TensorFlow / Keras")
+    st.markdown("**Model Version**: MNIST-CNN v1.0")
+    st.markdown("**Layer Count**: 7 (2 Convolutional)")
     st.markdown("---")
-    st.markdown("""
-    <div class="stat-box">
-        <div class="stat-label">Input Shape</div>
-        <div class="stat-value">28 x 28 x 1</div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown("### Instructions")
+    st.caption("1. Choose input method (Upload/Draw)")
+    st.caption("2. Review the 'AI Vision' preview")
+    st.caption("3. Click 'Classify' to see prediction")
+    st.markdown("---")
+    st.markdown("Built with **DeepMind AntiGravity** concepts.")
 
-    st.markdown("""
-    <div class="stat-box">
-        <div class="stat-label">Output Classes</div>
-        <div class="stat-value">10 (Digits 0-9)</div>
-    </div>
-    """, unsafe_allow_html=True)
+if model is None:
+    st.error("Model engine is offline. Please ensure models/mnist_cnn_v1.h5 exists.")
+    st.stop()
 
-
-# --- PREPROCESSING ---
-def preprocess_image(img):
-    """Convert any image to model-ready 28x28 grayscale numpy array."""
-    img = ImageOps.grayscale(img)
-    img = ImageOps.invert(img)
+# --- PREPROCESSING UTILITY ---
+def get_ai_vision(image):
+    """Processes image and returns both the 4D model input AND the 28x28 grayscale preview."""
+    img = ImageOps.grayscale(image)
+    # MNIST images are white digits on black. 
+    # If the user uploaded a black digit on white, we might need to invert. 
+    # For now, we standardize and resize.
     img = img.resize((28, 28), Image.LANCZOS)
     img_array = np.array(img).astype('float32') / 255.0
-    img_array = img_array.reshape(1, 28, 28, 1)
-    return img_array
+    
+    # Simple check: if mean is > 0.5, it's likely a white background, so invert for MNIST
+    if img_array.mean() > 0.5:
+        img_array = 1.0 - img_array
+        
+    img_input = img_array.reshape(1, 28, 28, 1)
+    return img_input, img_array
 
+# --- MAIN INTERFACE ---
+tab_upload, tab_draw = st.tabs(["[ 📁 ] Upload Image", "[ 🎨 ] Draw Digit"])
 
-def preprocess_canvas_image(data_url):
-    """Decode a base64 data URL from the canvas into a model-ready array."""
-    header, encoded = data_url.split(',', 1)
-    img_bytes = base64.b64decode(encoded)
-    img = Image.open(io.BytesIO(img_bytes)).convert('L')
-    img = img.resize((28, 28), Image.LANCZOS)
-    img_array = np.array(img).astype('float32') / 255.0
-    img_array = img_array.reshape(1, 28, 28, 1)
-    return img_array
-
-
-def display_results(prediction):
-    """Display prediction results with styled layout."""
-    digit = int(np.argmax(prediction))
-    confidence = float(np.max(prediction))
-
-    col_result, col_chart = st.columns([1, 2])
-
-    with col_result:
-        st.markdown(f"""
-        <div class="prediction-card">
-            <div class="prediction-digit">{digit}</div>
-            <div class="confidence-label">Confidence</div>
-            <div class="confidence-value">{confidence:.1%}</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with col_chart:
-        st.markdown("#### Probability Distribution")
-        chart_data = {str(i): float(prediction[0][i]) for i in range(10)}
-        st.bar_chart(chart_data)
-
-
-# --- CANVAS HTML (inline for reliability) ---
+# -- CANVAS COMPONENT HTML --
+# Note: Same robust HTML5 canvas as before, but with updated cleaner styling
 CANVAS_HTML = """
-<div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
+<div style="display:flex;flex-direction:column;align-items:center;gap:15px; background:#0d1117; padding:20px; border-radius:12px; border:1px solid #30363d;">
     <canvas id="drawCanvas" width="280" height="280"
-        style="border:2px solid #667eea;border-radius:12px;cursor:crosshair;touch-action:none;background:#000;">
+        style="border:2px solid #58a6ff; border-radius:8px; cursor:crosshair; touch-action:none; background:#000;">
     </canvas>
-    <div style="display:flex;gap:10px;">
+    <div style="display:flex;gap:15px;">
         <button onclick="clearCanvas()"
-            style="padding:8px 24px;border:none;border-radius:8px;font-size:14px;font-weight:600;
-            cursor:pointer;background:#2d3748;color:#e2e8f0;">Clear</button>
+            style="padding:10px 30px; border:1px solid #30363d; border-radius:8px; font-size:14px; font-weight:600;
+            cursor:pointer; background:#21262d; color:#c9d1d9;">Clear</button>
         <button onclick="submitDrawing()"
-            style="padding:8px 24px;border:none;border-radius:8px;font-size:14px;font-weight:600;
-            cursor:pointer;background:linear-gradient(135deg,#667eea,#764ba2);color:white;">
-            Classify Drawing</button>
+            style="padding:10px 30px; border:none; border-radius:8px; font-size:14px; font-weight:600;
+            cursor:pointer; background:#238636; color:white;">Capture Drawing</button>
     </div>
-    <input type="hidden" id="canvasData" value="">
 </div>
 <script>
 const canvas = document.getElementById('drawCanvas');
@@ -307,55 +245,80 @@ canvas.addEventListener('touchend', e => { e.preventDefault(); drawing=false; })
 
 function submitDrawing() {
     const dataUrl = canvas.toDataURL('image/png');
-    // Save to a temporary file by writing to a hidden link and downloading
     const link = document.createElement('a');
-    link.download = 'drawn_digit.png';
+    link.download = 'capture.png';
     link.href = dataUrl;
     link.click();
 }
 </script>
 """
 
-
-# --- TABS ---
-tab_upload, tab_draw = st.tabs(["Upload Image", "Draw Digit"])
+def classification_ui(image):
+    """Reusable UI for displaying results with AI Vision preview."""
+    input_4d, preview_2d = get_ai_vision(image)
+    
+    col_vision, col_results = st.columns([1, 2])
+    
+    with col_vision:
+        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+        st.markdown("#### AI Vision")
+        st.caption("How the neural network sees the input (28x28 normalized grayscale)")
+        st.image(preview_2d, use_container_width=True, clamp=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+    with col_results:
+        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+        st.markdown("#### Inference Result")
+        
+        # Perform prediction
+        probs = model.predict(input_4d, verbose=0)[0]
+        digit = np.argmax(probs)
+        confidence = np.max(probs)
+        
+        res_col1, res_col2 = st.columns([1, 2])
+        with res_col1:
+            st.markdown(f"""
+            <div class="metric-container">
+                <div class="metric-label">Predicted Digit</div>
+                <div class="metric-value">{digit}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with res_col2:
+            st.markdown(f"""
+            <div class="metric-container" style="height: 100%;">
+                <div class="metric-label">Confidence</div>
+                <div style="font-size: 1.8rem; font-weight: 700; color: #3fb950; margin-top: 10px;">{confidence:.1%}</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+        st.markdown("---")
+        st.markdown("##### Probabilities")
+        chart_data = {str(i): float(probs[i]) for i in range(10)}
+        st.bar_chart(chart_data)
+        st.markdown('</div>', unsafe_allow_html=True)
 
 with tab_upload:
-    st.markdown("#### Upload a digit image for classification")
-
-    uploaded_file = st.file_uploader(
-        "Supported formats: PNG, JPG, JPEG",
-        type=["png", "jpg", "jpeg"],
-        key="uploader"
-    )
-
+    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+    st.markdown("### Upload Target")
+    uploaded_file = st.file_uploader("Select PNG, JPG, or JPEG for classification", type=["png", "jpg", "jpeg"])
+    
     if uploaded_file is not None:
         image = Image.open(uploaded_file)
-
-        col_img, col_space = st.columns([1, 3])
-        with col_img:
-            st.image(image, caption="Uploaded Image", width=180)
-
-        if st.button("Classify", key="btn_upload"):
-            with st.spinner("Analyzing..."):
-                processed = preprocess_image(image)
-                prediction = model.predict(processed, verbose=0)
-                display_results(prediction)
+        if st.button("[ 🔋 ] Classify Uploaded Sample"):
+            classification_ui(image)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 with tab_draw:
-    st.markdown("#### Draw a single digit (0-9) in the canvas below")
-    st.markdown("Draw your digit, then click **Classify Drawing** to download it as an image. "
-                "Upload that image in the **Upload Image** tab to classify it.")
-
-    # Render the HTML5 canvas
-    components.html(CANVAS_HTML, height=380)
+    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+    st.markdown("### Neural Canvas")
+    st.info("Draw a digit inside the blue square. Click 'Capture Drawing' to generate a sample, then upload it in the 'Upload Image' tab.")
+    components.html(CANVAS_HTML, height=450)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # --- FOOTER ---
-st.markdown("---")
-st.markdown(
-    '<p style="text-align:center; color:#4a5568; font-size:0.85rem;">'
-    'MNIST CNN Classifier -- Built with TensorFlow and Streamlit'
-    '</p>',
-    unsafe_allow_html=True
-)
-
+st.markdown("""
+<div style="text-align:center; padding: 20px; color: #8b949e; font-size: 0.8rem;">
+    MNIST Neural Vision | DeepMind AntiGravity Edition | (c) 2026
+</div>
+""", unsafe_allow_html=True)
