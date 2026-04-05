@@ -6,319 +6,188 @@ from PIL import Image, ImageOps
 import base64
 import io
 import os
+import time
 
 # --- PAGE CONFIG ---
 st.set_page_config(
-    page_title="MNIST Neural Vision",
-    page_icon="🧠",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    page_title="Neural Chat AI",
+    page_icon="🤖",
+    layout="wide"
 )
 
-# --- PREMIUM STATIONARY CSS (No Animations) ---
+# --- PREMIUM DASHBOARD CHAT CSS (Stationary) ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
 
-    /* Main Container Styling */
+    /* Global Aesthetics */
     .main {
-        background-color: #0b0e14;
-        color: #e6edf3;
+        background-color: #0d1117;
+        color: #c9d1d9;
         font-family: 'Inter', sans-serif;
     }
 
-    /* Glassmorphism Cards */
-    .glass-card {
-        background: rgba(23, 27, 33, 0.7);
-        border: 1px solid rgba(48, 54, 61, 1);
-        border-radius: 12px;
-        padding: 24px;
-        margin-bottom: 20px;
-        backdrop-filter: blur(8px);
+    /* Conversation Bubble Styling */
+    section[data-testid="stChatMessageContainer"] {
+        padding: 1rem;
+        background: transparent;
     }
 
-    /* Sidebar Styling */
+    /* Custom Input Controls Panel */
+    .input-panel {
+        background: rgba(22, 27, 34, 0.95);
+        border: 1px solid #30363d;
+        border-radius: 12px;
+        padding: 24px;
+        margin-top: 20px;
+    }
+
+    /* Sidebar Fix */
     section[data-testid="stSidebar"] {
-        background-color: #0d1117;
+        background-color: #010409;
         border-right: 1px solid #30363d;
     }
 
-    /* Typography */
-    h1, h2, h3 {
-        color: #f0f6fc;
-        font-weight: 700;
+    /* Result Metric Highlight */
+    .chat-prediction-card {
+        padding: 16px;
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        margin-top: 10px;
     }
     
-    .hero-text {
+    .chat-digit {
         font-size: 2.5rem;
-        background: linear-gradient(90deg, #58a6ff, #bc8cff);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin-bottom: 10px;
-    }
-
-    /* Custom Metric Styling */
-    .metric-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 15px;
-        background: rgba(31, 35, 41, 1);
-        border-radius: 8px;
-        border: 1px solid #30363d;
-    }
-    .metric-value {
-        font-size: 3rem;
         font-weight: 800;
         color: #58a6ff;
     }
-    .metric-label {
-        font-size: 0.8rem;
-        text-transform: uppercase;
-        color: #8b949e;
-        letter-spacing: 1px;
-    }
 
-    /* System Badges */
-    .status-badge {
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 11px;
-        font-weight: 600;
-        text-transform: uppercase;
-        margin-right: 8px;
-    }
-    .badge-online { background: rgba(35, 134, 54, 0.2); color: #3fb950; border: 1px solid #238636; }
-    .badge-test { background: rgba(31, 111, 235, 0.2); color: #58a6ff; border: 1px solid #388bfd; }
-
-    /* Custom Tabs */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 10px;
-        padding-bottom: 10px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        height: 45px;
-        background-color: transparent;
-        border: 1px solid #30363d;
-        border-radius: 8px;
-        color: #8b949e;
-    }
-    .stTabs [aria-selected="true"] {
-        background-color: #1f2329 !important;
-        border-color: #58a6ff !important;
-        color: #f0f6fc !important;
-    }
-
-    /* Prediction Preview Mask */
-    .ai-vision-box {
-        border: 4px solid #30363d;
-        border-radius: 8px;
-        image-rendering: pixelated;
-    }
-
-    /* Buttons */
-    .stButton>button {
-        background: linear-gradient(180deg, #21262d 0%, #161b22 100%);
-        color: #c9d1d9;
-        border: 1px solid #30363d;
-        border-radius: 6px;
-        font-weight: 600;
-        width: 100%;
-        transition: none; /* No Animation */
-    }
-    .stButton>button:hover {
-        border-color: #8b949e;
-        color: #f0f6fc;
-    }
+    /* Stationary Fix (Disable any extra Streamlit animations) */
+    * { transition: none !important; animation: none !important; }
 
 </style>
 """, unsafe_allow_html=True)
 
 # --- MODEL LOADING ---
 @st.cache_resource
-def load_mnist_model():
+def load_engine():
     model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'mnist_cnn_v1.h5')
     if os.path.exists(model_path):
         return tf.keras.models.load_model(model_path)
     return None
 
-model = load_mnist_model()
+model = load_engine()
 
-# --- HEADER SECTION ---
-col_head, col_space = st.columns([3, 1])
-with col_head:
-    st.markdown('<p class="hero-text">Neural Vision</p>', unsafe_allow_html=True)
-    st.markdown("""
-    <div style="margin-bottom: 30px;">
-        <span class="status-badge badge-online">System: Operational</span>
-        <span class="status-badge badge-test">Accuracy: 99.17%</span>
-    </div>
-    """, unsafe_allow_html=True)
-
-# --- SIDEBAR DASHBOARD ---
-with st.sidebar:
-    st.markdown("### System Dashboard")
-    st.markdown("---")
-    st.markdown("**Engine**: TensorFlow / Keras")
-    st.markdown("**Model Version**: MNIST-CNN v1.0")
-    st.markdown("**Layer Count**: 7 (2 Convolutional)")
-    st.markdown("---")
-    st.markdown("### Instructions")
-    st.caption("1. Choose input method (Upload/Draw)")
-    st.caption("2. Review the 'AI Vision' preview")
-    st.caption("3. Click 'Classify' to see prediction")
-    st.markdown("---")
-    st.markdown("Built with **DeepMind AntiGravity** concepts.")
-
-if model is None:
-    st.error("Model engine is offline. Please ensure models/mnist_cnn_v1.h5 exists.")
-    st.stop()
-
-# --- PREPROCESSING UTILITY ---
-def get_ai_vision(image):
-    """Processes image and returns both the 4D model input AND the 28x28 grayscale preview."""
+# --- PREPROCESSING ---
+def process_message_image(image):
+    """Normalized image for AI vision."""
     img = ImageOps.grayscale(image)
-    # MNIST images are white digits on black. 
-    # If the user uploaded a black digit on white, we might need to invert. 
-    # For now, we standardize and resize.
     img = img.resize((28, 28), Image.LANCZOS)
     img_array = np.array(img).astype('float32') / 255.0
-    
-    # Simple check: if mean is > 0.5, it's likely a white background, so invert for MNIST
     if img_array.mean() > 0.5:
         img_array = 1.0 - img_array
-        
     img_input = img_array.reshape(1, 28, 28, 1)
     return img_input, img_array
 
-# --- MAIN INTERFACE ---
-tab_upload, tab_draw = st.tabs(["[ 📁 ] Upload Image", "[ 🎨 ] Draw Digit"])
+# --- SESSION STATE INITIALIZATION ---
+if "messages" not in st.session_state:
+    st.session_state.messages = [
+        {"role": "assistant", "content": "Hello! I am **Neural Vision AI**. Please provide a handwritten digit (0-9) via the tools in the sidebar, and I will classify it for you."}
+    ]
 
-# -- CANVAS COMPONENT HTML --
-# Note: Same robust HTML5 canvas as before, but with updated cleaner styling
-CANVAS_HTML = """
-<div style="display:flex;flex-direction:column;align-items:center;gap:15px; background:#0d1117; padding:20px; border-radius:12px; border:1px solid #30363d;">
-    <canvas id="drawCanvas" width="280" height="280"
-        style="border:2px solid #58a6ff; border-radius:8px; cursor:crosshair; touch-action:none; background:#000;">
-    </canvas>
-    <div style="display:flex;gap:15px;">
-        <button onclick="clearCanvas()"
-            style="padding:10px 30px; border:1px solid #30363d; border-radius:8px; font-size:14px; font-weight:600;
-            cursor:pointer; background:#21262d; color:#c9d1d9;">Clear</button>
-        <button onclick="submitDrawing()"
-            style="padding:10px 30px; border:none; border-radius:8px; font-size:14px; font-weight:600;
-            cursor:pointer; background:#238636; color:white;">Capture Drawing</button>
-    </div>
-</div>
-<script>
-const canvas = document.getElementById('drawCanvas');
-const ctx = canvas.getContext('2d');
-let drawing = false;
-
-function clearCanvas() {
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, 280, 280);
-}
-clearCanvas();
-
-ctx.strokeStyle = '#FFF';
-ctx.lineWidth = 18;
-ctx.lineCap = 'round';
-ctx.lineJoin = 'round';
-
-function getPos(e) {
-    const r = canvas.getBoundingClientRect();
-    const x = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
-    const y = (e.touches ? e.touches[0].clientY : e.clientY) - r.top;
-    return {x, y};
-}
-
-canvas.addEventListener('mousedown', e => { e.preventDefault(); drawing=true; const p=getPos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); });
-canvas.addEventListener('mousemove', e => { e.preventDefault(); if(!drawing)return; const p=getPos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); });
-canvas.addEventListener('mouseup', e => { e.preventDefault(); drawing=false; });
-canvas.addEventListener('mouseleave', e => { drawing=false; });
-canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing=true; const p=getPos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); });
-canvas.addEventListener('touchmove', e => { e.preventDefault(); if(!drawing)return; const p=getPos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); });
-canvas.addEventListener('touchend', e => { e.preventDefault(); drawing=false; });
-
-function submitDrawing() {
-    const dataUrl = canvas.toDataURL('image/png');
-    const link = document.createElement('a');
-    link.download = 'capture.png';
-    link.href = dataUrl;
-    link.click();
-}
-</script>
-"""
-
-def classification_ui(image):
-    """Reusable UI for displaying results with AI Vision preview."""
-    input_4d, preview_2d = get_ai_vision(image)
+# --- SIDEBAR TOOLS ---
+with st.sidebar:
+    st.markdown("### 🛠 Neural Tools")
+    st.info("Use these tools to send a sample to the chat.")
     
-    col_vision, col_results = st.columns([1, 2])
+    input_mode = st.radio("Select Input Mode", ["Upload Sample", "Handwritten Draw"])
     
-    with col_vision:
-        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-        st.markdown("#### AI Vision")
-        st.caption("How the neural network sees the input (28x28 normalized grayscale)")
-        st.image(preview_2d, use_container_width=True, clamp=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-    with col_results:
-        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-        st.markdown("#### Inference Result")
-        
-        # Perform prediction
-        probs = model.predict(input_4d, verbose=0)[0]
-        digit = np.argmax(probs)
-        confidence = np.max(probs)
-        
-        res_col1, res_col2 = st.columns([1, 2])
-        with res_col1:
-            st.markdown(f"""
-            <div class="metric-container">
-                <div class="metric-label">Predicted Digit</div>
-                <div class="metric-value">{digit}</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with res_col2:
-            st.markdown(f"""
-            <div class="metric-container" style="height: 100%;">
-                <div class="metric-label">Confidence</div>
-                <div style="font-size: 1.8rem; font-weight: 700; color: #3fb950; margin-top: 10px;">{confidence:.1%}</div>
-            </div>
-            """, unsafe_allow_html=True)
+    selected_image = None
+    
+    if input_mode == "Upload Sample":
+        file = st.file_uploader("Drop image here", type=["png", "jpg", "jpeg"])
+        if file:
+            selected_image = Image.open(file)
+            st.image(selected_image, caption="Current Target", width=150)
             
-        st.markdown("---")
-        st.markdown("##### Probabilities")
-        chart_data = {str(i): float(probs[i]) for i in range(10)}
-        st.bar_chart(chart_data)
-        st.markdown('</div>', unsafe_allow_html=True)
+    else:
+        # Drawing Canvas HTML
+        CANVAS_HTML = """
+        <div style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:10px; text-align:center;">
+            <canvas id="c" width="200" height="200" style="border:1px solid #58a6ff; background:black; cursor:crosshair;"></canvas>
+            <br>
+            <button onclick="D()" style="margin-top:10px; background:#238636; color:white; border:none; padding:8px 16px; border-radius:4px; cursor:pointer;">Capture</button>
+            <button onclick="C()" style="background:#21262d; color:#c9d1d9; border:1px solid #30363d; padding:8px 16px; border-radius:4px; cursor:pointer;">Clear</button>
+        </div>
+        <script>
+        const v = document.getElementById('c'), x = v.getContext('2d');
+        let d = false;
+        function C() { x.fillStyle='black'; x.fillRect(0,0,200,200); }
+        C(); x.strokeStyle='white'; x.lineWidth=12; x.lineCap='round';
+        function G(e) { const r=v.getBoundingClientRect(); return {x:(e.touches?e.touches[0].clientX:e.clientX)-r.left, y:(e.touches?e.touches[0].clientY:e.clientY)-r.top}; }
+        v.onmousedown = v.ontouchstart = e => { e.preventDefault(); d=true; const p=G(e); x.beginPath(); x.moveTo(p.x,p.y); };
+        v.onmousemove = v.ontouchmove = e => { e.preventDefault(); if(!d) return; const p=G(e); x.lineTo(p.x,p.y); x.stroke(); };
+        v.onmouseup = v.ontouchend = v.onmouseleave = () => d=false;
+        function D() { const l=document.createElement('a'); l.download='draw.png'; l.href=v.toDataURL(); l.click(); }
+        </script>
+        """
+        components.html(CANVAS_HTML, height=320)
+        st.caption("1. Draw above | 2. Click Capture | 3. Upload 'draw.png' in Upload Mode.")
+        st.warning("Manual 'Capture' required due to canvas sandboxing.")
 
-with tab_upload:
-    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-    st.markdown("### Upload Target")
-    uploaded_file = st.file_uploader("Select PNG, JPG, or JPEG for classification", type=["png", "jpg", "jpeg"])
-    
-    if uploaded_file is not None:
-        image = Image.open(uploaded_file)
-        if st.button("[ 🔋 ] Classify Uploaded Sample"):
-            classification_ui(image)
-    st.markdown('</div>', unsafe_allow_html=True)
+    if st.button("🚀 Analyze current Target") and selected_image:
+        # Preprocess
+        inp, vis = process_message_image(selected_image)
+        # Classify
+        probs = model.predict(inp, verbose=0)[0]
+        digit = np.argmax(probs)
+        conf = np.max(probs)
+        
+        # Append User Message (the image)
+        st.session_state.messages.append({
+            "role": "user",
+            "image": selected_image,
+            "content": "Analyze this digit for me."
+        })
+        
+        # Append Assistant Response
+        st.session_state.messages.append({
+            "role": "assistant",
+            "prediction": int(digit),
+            "confidence": float(conf),
+            "vision": vis,
+            "content": f"I've analyzed the sample. I am **{conf:.1%}** confident that this is a **{digit}**."
+        })
+        st.rerun()
 
-with tab_draw:
-    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-    st.markdown("### Neural Canvas")
-    st.info("Draw a digit inside the blue square. Click 'Capture Drawing' to generate a sample, then upload it in the 'Upload Image' tab.")
-    components.html(CANVAS_HTML, height=450)
-    st.markdown('</div>', unsafe_allow_html=True)
+# --- MAIN CONVERSATION ---
+st.markdown("## 🧠 Neural Chat Dashboard")
+
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"], avatar="🤖" if msg["role"] == "assistant" else None):
+        # Text content
+        st.markdown(msg["content"])
+        
+        # If user message has an image
+        if "image" in msg:
+            st.image(msg["image"], width=150)
+            
+        # If assistant message has technical analysis
+        if "prediction" in msg:
+            cols = st.columns([1, 2])
+            with cols[0]:
+                st.markdown(f"""
+                <div class="chat-prediction-card">
+                    <div style="font-size: 0.7rem; color: #8b949e; text-transform: uppercase;">Prediction</div>
+                    <div class="chat-digit">{msg['prediction']}</div>
+                </div>
+                """, unsafe_allow_html=True)
+            with cols[1]:
+                st.markdown("##### AI Vision")
+                st.image(msg["vision"], width=100, clamp=True)
+                st.caption("How the Neural Network 'sees' the sample.")
 
 # --- FOOTER ---
-st.markdown("""
-<div style="text-align:center; padding: 20px; color: #8b949e; font-size: 0.8rem;">
-    MNIST Neural Vision | DeepMind AntiGravity Edition | (c) 2026
-</div>
-""", unsafe_allow_html=True)
+st.markdown("---")
+st.caption("Conversational MNIST Classifier | Verified Stationary Design")
