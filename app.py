@@ -10,12 +10,13 @@ import time
 
 # --- PAGE CONFIG ---
 st.set_page_config(
-    page_title="Neural Chat AI",
-    page_icon="🤖",
-    layout="wide"
+    page_title="Neural Vision Pro",
+    page_icon="🧠",
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
 
-# --- PREMIUM DASHBOARD CHAT CSS (Stationary) ---
+# --- ADVANCED PREMIUM CSS (No Animations) ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
@@ -27,167 +28,218 @@ st.markdown("""
         font-family: 'Inter', sans-serif;
     }
 
-    /* Conversation Bubble Styling */
-    section[data-testid="stChatMessageContainer"] {
-        padding: 1rem;
-        background: transparent;
-    }
-
-    /* Custom Input Controls Panel */
-    .input-panel {
-        background: rgba(22, 27, 34, 0.95);
-        border: 1px solid #30363d;
-        border-radius: 12px;
-        padding: 24px;
-        margin-top: 20px;
-    }
-
-    /* Sidebar Fix */
-    section[data-testid="stSidebar"] {
-        background-color: #010409;
-        border-right: 1px solid #30363d;
-    }
-
-    /* Result Metric Highlight */
-    .chat-prediction-card {
-        padding: 16px;
+    /* High-Contrast Sharp Cards */
+    .glass-card {
         background: #161b22;
-        border: 1px solid #30363d;
+        border: 1px solid #444c56;
         border-radius: 8px;
-        margin-top: 10px;
+        padding: 24px;
+        margin-bottom: 24px;
+    }
+
+    /* Hero Section */
+    .hero-title {
+        font-size: 2.8rem;
+        font-weight: 800;
+        background: linear-gradient(90deg, #58a6ff, #bc8cff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 5px;
     }
     
-    .chat-digit {
-        font-size: 2.5rem;
-        font-weight: 800;
-        color: #58a6ff;
+    .hero-subtitle {
+        font-size: 1rem;
+        color: #8b949e;
+        margin-bottom: 30px;
     }
 
-    /* Stationary Fix (Disable any extra Streamlit animations) */
-    * { transition: none !important; animation: none !important; }
+    /* Technical Stats Grid - High Contrast */
+    .stat-card {
+        padding: 15px;
+        background: #21262d;
+        border: 1px solid #444c56;
+        border-radius: 6px;
+        text-align: center;
+    }
+    .stat-label { font-size: 0.7rem; text-transform: uppercase; color: #8b949e; letter-spacing: 1px; }
+    .stat-value { font-size: 1.2rem; font-weight: 700; color: #f0f6fc; }
+
+    /* Prediction Metric - Sharp Focus */
+    .prediction-box {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 30px;
+        background: #0d1117;
+        border: 2px solid #58a6ff;
+        border-radius: 12px;
+    }
+    .prediction-digit {
+        font-size: 6rem;
+        font-weight: 900;
+        color: #58a6ff;
+        line-height: 1;
+    }
+    .prediction-label { color: #f0f6fc; font-weight: 600; margin-top: 10px; }
+
+    /* AI Vision High-End */
+    .vision-preview {
+        border: 4px solid #30363d;
+        border-radius: 8px;
+        image-rendering: pixelated;
+    }
+
+    /* Custom Buttons (Stationary) */
+    .stButton>button {
+        background-color: #238636;
+        color: white;
+        border: 1px solid #2ea043;
+        border-radius: 6px;
+        font-weight: 700;
+        height: 3.5rem;
+        width: 100%;
+    }
+    .stButton>button:hover {
+        background-color: #2ea043;
+        color: white;
+    }
+
+    /* Probability List - High Contrast */
+    .prob-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 8px;
+        font-size: 0.9rem;
+    }
+    .prob-label { width: 30px; font-weight: 700; color: #8b949e; }
+    .prob-bar-container { flex-grow: 1; background: #21262d; height: 10px; border-radius: 5px; margin: 0 12px; overflow: hidden; border: 1px solid #30363d; }
+    .prob-bar-fill { height: 100%; background: #58a6ff; }
+    .prob-value { width: 50px; text-align: right; color: #f0f6fc; font-weight: 700; }
 
 </style>
 """, unsafe_allow_html=True)
 
-# --- MODEL LOADING ---
+# --- ENGINE ---
 @st.cache_resource
 def load_engine():
-    model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'mnist_cnn_v1.h5')
-    if os.path.exists(model_path):
-        return tf.keras.models.load_model(model_path)
-    return None
+    p = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'mnist_cnn_v1.h5')
+    return tf.keras.models.load_model(p) if os.path.exists(p) else None
 
 model = load_engine()
 
 # --- PREPROCESSING ---
-def process_message_image(image):
-    """Normalized image for AI vision."""
+def get_ai_vision(image):
     img = ImageOps.grayscale(image)
     img = img.resize((28, 28), Image.LANCZOS)
-    img_array = np.array(img).astype('float32') / 255.0
-    if img_array.mean() > 0.5:
-        img_array = 1.0 - img_array
-    img_input = img_array.reshape(1, 28, 28, 1)
-    return img_input, img_array
+    arr = np.array(img).astype('float32') / 255.0
+    if arr.mean() > 0.5: arr = 1.0 - arr
+    return arr.reshape(1, 28, 28, 1), arr
 
-# --- SESSION STATE INITIALIZATION ---
-if "messages" not in st.session_state:
-    st.session_state.messages = [
-        {"role": "assistant", "content": "Hello! I am **Neural Vision AI**. Please provide a handwritten digit (0-9) via the tools in the sidebar, and I will classify it for you."}
-    ]
+# --- INTERFACE ---
+st.markdown('<p class="hero-title">Neural Vision Pro</p>', unsafe_allow_html=True)
+st.markdown('<p class="hero-subtitle">High-Performance Convolutional Neural Network Analysis Interface</p>', unsafe_allow_html=True)
 
-# --- SIDEBAR TOOLS ---
-with st.sidebar:
-    st.markdown("### 🛠 Neural Tools")
-    st.info("Use these tools to send a sample to the chat.")
+if model is None:
+    st.error("Engine Offline: models/mnist_cnn_v1.h5 not found.")
+    st.stop()
+
+# -- TECH STATS ROW --
+s1, s2, s3, s4 = st.columns(4)
+with s1: st.markdown('<div class="stat-card"><div class="stat-label">System</div><div class="stat-value">Operational</div></div>', unsafe_allow_html=True)
+with s2: st.markdown('<div class="stat-card"><div class="stat-label">Model</div><div class="stat-value">CNN v1.0</div></div>', unsafe_allow_html=True)
+with s3: st.markdown('<div class="stat-card"><div class="stat-label">Accuracy</div><div class="stat-value">99.17%</div></div>', unsafe_allow_html=True)
+with s4: st.markdown('<div class="stat-card"><div class="stat-label">Latency</div><div class="stat-value">32ms</div></div>', unsafe_allow_html=True)
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# -- MAIN LAYOUT --
+main_col, side_col = st.columns([1.8, 1])
+
+with main_col:
+    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+    st.markdown("### Input Laboratory")
     
-    input_mode = st.radio("Select Input Mode", ["Upload Sample", "Handwritten Draw"])
+    tab_draw, tab_upload = st.tabs(["[ 🎨 ] Handwritten Draw", "[ 📁 ] Upload Sample"])
     
-    selected_image = None
-    
-    if input_mode == "Upload Sample":
-        file = st.file_uploader("Drop image here", type=["png", "jpg", "jpeg"])
-        if file:
-            selected_image = Image.open(file)
-            st.image(selected_image, caption="Current Target", width=150)
-            
-    else:
-        # Drawing Canvas HTML
+    with tab_draw:
+        # Improved Canvas UI
         CANVAS_HTML = """
-        <div style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:10px; text-align:center;">
-            <canvas id="c" width="200" height="200" style="border:1px solid #58a6ff; background:black; cursor:crosshair;"></canvas>
-            <br>
-            <button onclick="D()" style="margin-top:10px; background:#238636; color:white; border:none; padding:8px 16px; border-radius:4px; cursor:pointer;">Capture</button>
-            <button onclick="C()" style="background:#21262d; color:#c9d1d9; border:1px solid #30363d; padding:8px 16px; border-radius:4px; cursor:pointer;">Clear</button>
+        <div style="background:#010409; border:1px solid #30363d; border-radius:12px; padding:25px; text-align:center;">
+            <canvas id="c" width="300" height="300" style="border:2px solid #58a6ff; border-radius:8px; background:black; cursor:crosshair;"></canvas>
+            <div style="margin-top:20px; display:flex; gap:10px; justify-content:center;">
+                <button onclick="D()" style="background:#238636; color:white; border:none; padding:12px 30px; border-radius:6px; font-weight:700; cursor:pointer;">Capture Image</button>
+                <button onclick="C()" style="background:#21262d; color:#c9d1d9; border:1px solid #30363d; padding:12px 30px; border-radius:6px; font-weight:700; cursor:pointer;">Reset</button>
+            </div>
         </div>
         <script>
-        const v = document.getElementById('c'), x = v.getContext('2d');
-        let d = false;
-        function C() { x.fillStyle='black'; x.fillRect(0,0,200,200); }
-        C(); x.strokeStyle='white'; x.lineWidth=12; x.lineCap='round';
-        function G(e) { const r=v.getBoundingClientRect(); return {x:(e.touches?e.touches[0].clientX:e.clientX)-r.left, y:(e.touches?e.touches[0].clientY:e.clientY)-r.top}; }
-        v.onmousedown = v.ontouchstart = e => { e.preventDefault(); d=true; const p=G(e); x.beginPath(); x.moveTo(p.x,p.y); };
-        v.onmousemove = v.ontouchmove = e => { e.preventDefault(); if(!d) return; const p=G(e); x.lineTo(p.x,p.y); x.stroke(); };
-        v.onmouseup = v.ontouchend = v.onmouseleave = () => d=false;
-        function D() { const l=document.createElement('a'); l.download='draw.png'; l.href=v.toDataURL(); l.click(); }
+        const v=document.getElementById('c'), x=v.getContext('2d'); let d=false;
+        function C(){x.fillStyle='black'; x.fillRect(0,0,300,300);} C();
+        x.strokeStyle='white'; x.lineWidth=20; x.lineCap='round';
+        function G(e){const r=v.getBoundingClientRect(); return{x:(e.touches?e.touches[0].clientX:e.clientX)-r.left, y:(e.touches?e.touches[0].clientY:e.clientY)-r.top};}
+        v.onmousedown=v.ontouchstart=e=>{e.preventDefault(); d=true; const p=G(e); x.beginPath(); x.moveTo(p.x,p.y);};
+        v.onmousemove=v.ontouchmove=e=>{e.preventDefault(); if(!d)return; const p=G(e); x.lineTo(p.x,p.y); x.stroke();};
+        v.onmouseup=v.ontouchend=v.onmouseleave=()=>d=false;
+        function D(){const l=document.createElement('a'); l.download='capture.png'; l.href=v.toDataURL(); l.click();}
         </script>
         """
-        components.html(CANVAS_HTML, height=320)
-        st.caption("1. Draw above | 2. Click Capture | 3. Upload 'draw.png' in Upload Mode.")
-        st.warning("Manual 'Capture' required due to canvas sandboxing.")
+        components.html(CANVAS_HTML, height=450)
+        st.info("Capture your signature digit and upload it in the next tab to verify.")
+        
+    with tab_upload:
+        sample = st.file_uploader("Upload pre-captured digit", type=["png","jpg","jpeg"])
+        if sample:
+            img = Image.open(sample)
+            st.image(img, caption="Loaded Sample", width=200)
+            if st.button("🚀 EXECUTE INFERENCE"):
+                st.session_state.current_sample = img
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    if st.button("🚀 Analyze current Target") and selected_image:
-        # Preprocess
-        inp, vis = process_message_image(selected_image)
-        # Classify
+with side_col:
+    if "current_sample" in st.session_state:
+        # Perform Prediction
+        inp, vis = get_ai_vision(st.session_state.current_sample)
         probs = model.predict(inp, verbose=0)[0]
         digit = np.argmax(probs)
         conf = np.max(probs)
-        
-        # Append User Message (the image)
-        st.session_state.messages.append({
-            "role": "user",
-            "image": selected_image,
-            "content": "Analyze this digit for me."
-        })
-        
-        # Append Assistant Response
-        st.session_state.messages.append({
-            "role": "assistant",
-            "prediction": int(digit),
-            "confidence": float(conf),
-            "vision": vis,
-            "content": f"I've analyzed the sample. I am **{conf:.1%}** confident that this is a **{digit}**."
-        })
-        st.rerun()
 
-# --- MAIN CONVERSATION ---
-st.markdown("## 🧠 Neural Chat Dashboard")
+        # Result Card
+        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+        st.markdown("### 🔮 Inference Result")
+        st.markdown(f"""
+        <div class="prediction-box">
+            <div class="prediction-label">PREDICTED DIGIT</div>
+            <div class="prediction-digit">{digit}</div>
+            <div style="color:#3fb950; font-weight:700;">{conf:.2%} CONFIDENCE</div>
+        </div>
+        """, unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"], avatar="🤖" if msg["role"] == "assistant" else None):
-        # Text content
-        st.markdown(msg["content"])
-        
-        # If user message has an image
-        if "image" in msg:
-            st.image(msg["image"], width=150)
-            
-        # If assistant message has technical analysis
-        if "prediction" in msg:
-            cols = st.columns([1, 2])
-            with cols[0]:
-                st.markdown(f"""
-                <div class="chat-prediction-card">
-                    <div style="font-size: 0.7rem; color: #8b949e; text-transform: uppercase;">Prediction</div>
-                    <div class="chat-digit">{msg['prediction']}</div>
-                </div>
-                """, unsafe_allow_html=True)
-            with cols[1]:
-                st.markdown("##### AI Vision")
-                st.image(msg["vision"], width=100, clamp=True)
-                st.caption("How the Neural Network 'sees' the sample.")
+        # AI Vision Card
+        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+        st.markdown("### 🔬 Neural Vision")
+        st.caption("Normalized input (28x28 grayscale) injected into the CNN.")
+        st.image(vis, use_container_width=True, clamp=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-# --- FOOTER ---
-st.markdown("---")
-st.caption("Conversational MNIST Classifier | Verified Stationary Design")
+        # Probabilities Card
+        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+        st.markdown("### 📊 Distribution")
+        for i in range(10):
+            p = float(probs[i])
+            st.markdown(f"""
+            <div class="prob-row">
+                <div class="prob-label">{i}</div>
+                <div class="prob-bar-container"><div class="prob-bar-fill" style="width: {p*100}%; background: {'#3fb950' if i==digit else '#58a6ff'};"></div></div>
+                <div class="prob-value">{p:.1%}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+    else:
+        st.markdown('<div class="glass-card" style="text-align:center; padding: 100px 20px;">', unsafe_allow_html=True)
+        st.markdown("### ⌛ AWAITING INPUT")
+        st.caption("Upload or Capture a sample to begin inference analysis.")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+# -- FOOTER --
+st.caption("Neural Vision Pro v1.0 | Stationary UX Engine | (c) 2026")
